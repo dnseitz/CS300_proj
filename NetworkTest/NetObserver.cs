@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace CS300Net
 {
-    public interface Observer
+    public interface NetObserver
     {
-        void Update(byte[] data);
+        void DataRecieved(byte[] data);
     }
 }
