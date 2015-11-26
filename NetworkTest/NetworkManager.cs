@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Windows.Forms;
 using System.Collections.Generic;
-//using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Threading;
 using System.Net;
 using System.Net.Sockets;
@@ -34,7 +31,7 @@ namespace CS300Net
         private TcpListener listener;
         private bool listening;
         private Thread listenThread;
-        private Queue<MethodInvoker> removeQueue;
+        private Queue<Action> removeQueue;
         private bool removing;
 
         private List<NetObserver> observers;
@@ -47,12 +44,15 @@ namespace CS300Net
             }
         }
 
+        /// <summary>
+        /// Create a new NetworkManager instance to handle connecting, sending and recieving data to remote applications
+        /// </summary>
         public NetworkManager()
         {
             listener = new TcpListener(LocalIP, portNum);
             listening = false;
             listenThread = null;
-            removeQueue = new Queue<MethodInvoker>();
+            removeQueue = new Queue<Action>();
             removing = false;
             observers = new List<NetObserver>();
             _connected = new List<Tuple<string, TcpClient>>();
@@ -65,7 +65,11 @@ namespace CS300Net
             observers.Clear();
         }
 
-        public static IPAddress GetLocalIPAddress()
+        /// <summary>
+        /// Get the IPAddress object for the local address of the machine this code is running on
+        /// </summary>
+        /// <returns>Returns the Local IP</returns>
+        private static IPAddress GetLocalIPAddress()
         {
             IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
             IPAddress localIP = null;
@@ -149,10 +153,13 @@ namespace CS300Net
         /// <summary>
         /// Attempt to connect to the designated ipv4 address without port number and start recieving data asynchronously.
         /// </summary>
-        /// <param name="ipAddr">An ipv4 address without a port number</param>
-        /// <returns>Returns true if connection is successful, false otherwise</returns>
+        /// <param name="ipAddr">An ipv4 address without a port number.</param>
+        /// <returns>Returns true if connection is successful, false otherwise.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when the argument is null.</exception>
         public bool Connect(string ipAddr)
         {
+            if (ipAddr == null)
+                throw new ArgumentNullException("ipAddr");
             try
             {
                 TcpClient newConn = new TcpClient(ipAddr, portNum);
@@ -164,7 +171,7 @@ namespace CS300Net
             }
             catch (SocketException se)
             {
-                Console.WriteLine("SocketException : ErrorCode({0}) {0}", se.ErrorCode, se.ToString());
+                Console.WriteLine("SocketException : ErrorCode({0})", se.ErrorCode);
                 return false;
             }
             catch (Exception e)
@@ -201,7 +208,10 @@ namespace CS300Net
                 }
             }
             if (client == null)
+            {
+                Console.WriteLine("IP addr not found");
                 throw new InvalidOperationException("Not connected to argument IP");
+            }
 
             NetworkStream ns = client.GetStream();
 
@@ -219,11 +229,14 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Called when a connection thread recieves data. Calls the DataRecieved(data) function on all observers.
+        /// Called when a connection thread recieves data. Calls the DataRecieved(data) function on all observers, 
+        /// data will never be null.
         /// </summary>
         /// <param name="data">The byte array that was recieved.</param>
         protected void DataRecieved(byte[] data)
         {
+            if (data == null)
+                return;
             foreach(NetObserver obs in observers)
             {
                 obs.DataRecieved(data);
@@ -285,8 +298,8 @@ namespace CS300Net
             {
                 while(true)
                 {
-                    MethodInvoker rem = removeQueue.Dequeue();
-                    rem.Invoke();
+                    Action rem = removeQueue.Dequeue();
+                    rem();
                 }
             }
             catch(InvalidOperationException)
