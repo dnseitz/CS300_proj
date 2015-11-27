@@ -1,4 +1,5 @@
-﻿using System;
+﻿/*Daniel Seitz, CS300, Group: Carcujo*/
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
@@ -15,7 +16,9 @@ namespace CS300Net
     /// Handles connections between our dispatch server and emergency vehicle clients.
     /// Provides methods to listen for incoming connections, connect, send and recieve data asynchronously.
     /// Static methods Encode and Decode are available for encoding and decoding objects you wish to send over the network.
-    /// Any objects requiring the data must implement the NetObserver interface and register to the NetworkManager.</summary>
+    /// <para>Call Listen() to allow incoming connections, and StopListen() to disallow. You must convert any data that you wish
+    /// to send to an array of bytes. Use the ipv4 of the server you wish to connect to.
+    /// Any objects requiring the data must implement the NetObserver interface and register to the NetworkManager.</para></summary>
     public class NetworkManager
     {
         private enum NetworkEvent { CONN_OPEN, DATA_RECV, CONN_CLOSE };
@@ -60,9 +63,7 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Create a new NetworkManager instance to handle connecting, sending and recieving data to remote applications.
-        /// Call Listen() to allow incoming connections, and StopListen() to disallow. You must convert any data that you wish
-        /// to send to an array of bytes.</summary>
+        /// Create a new NetworkManager instance to handle connecting, sending and recieving data to remote applications.</summary>
         public NetworkManager()
         {
             listener = new TcpListener(IPAddress.Parse(LocalIP), portNum);
@@ -105,6 +106,7 @@ namespace CS300Net
         /// <returns>Returns an array of bytes representing the encoded object.</returns>
         /// <exception cref="ArgumentNullException">Thrown if obj is null</exception>
         /// <exception cref="System.Runtime.Serialization.SerializationException">Thrown if obj is not marked as serializable</exception>
+        /// <seealso cref="Decode{T}(byte[])"/>
         public static byte[] Encode(object obj)
         {
             if (obj == null)
@@ -124,6 +126,7 @@ namespace CS300Net
         /// <returns>The decoded object</returns>
         /// <exception cref="ArgumentNullException">Thrown if the byte array is null.</exception>
         /// <exception cref="IOException">Thrown if there is an error writing the bytes to the stream.</exception>
+        /// <seealso cref="Encode(object)"/>
         public static T Decode<T>(byte[] encoded)
         {
             if (encoded == null)
@@ -150,8 +153,10 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Start listening for incoming connections, should be called on a separate thread.</summary>
-        protected void _Listen()
+        /// Start listening for incoming connections.</summary>
+        /// <remarks>
+        /// This should be called on a separate thread to avoid blocking the main thread.</remarks>
+        private void _Listen()
         {
             try
             {
@@ -281,7 +286,7 @@ namespace CS300Net
         /// Start recieving data from a connected client. 
         /// This method is blocking.</summary>
         /// <param name="client">Client to start recieving data from.</param>
-        protected void Recieve(TcpClient client)
+        private void Recieve(TcpClient client)
         {
             NetworkStream ns = client.GetStream();
             byte[] buffer = new byte[1024];

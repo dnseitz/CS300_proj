@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿/*Daniel Seitz, CS300, Group: Carcujo*/
+using System;
 using System.Text;
-using System.Threading.Tasks;
 using CS300Net;
 
 namespace LocalNetworkTest
