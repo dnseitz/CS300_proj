@@ -254,6 +254,7 @@ namespace CS300Net
                 throw new ArgumentNullException("destIP");
             TcpClient client = null;
 
+            CleanupConnected();
             foreach (Tuple<string, TcpClient> conn in _connected)
             {
                 if (conn.Item1.Equals(destIP))
