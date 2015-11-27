@@ -223,7 +223,8 @@ namespace CS300Net
                 _connected.Add(new Tuple<string, TcpClient>(clientIP, newConn));
 
                 Thread newConnThread = new Thread(() => Recieve(newConn));
-
+                newConnThread.Start();
+     
                 return true;
             }
             catch (SocketException se)
@@ -271,7 +272,11 @@ namespace CS300Net
 
             try
             {
-                ns.Write(data, 0, data.Length);
+                if (ns.CanWrite)
+                {
+                    ns.Write(data, 0, data.Length);
+                    ns.Flush();
+                }
             }
             catch(Exception e)
             {

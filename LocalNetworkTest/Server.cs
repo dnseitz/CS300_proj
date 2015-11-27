@@ -7,9 +7,9 @@ namespace LocalNetworkTest
 {
     class Server : NetObserver
     {
+        private static NetworkManager netMan = new NetworkManager();
         static void Main(string[] args)
         {
-            NetworkManager netMan = new NetworkManager();
             Server server = new Server();
 
             netMan.Register(server);
@@ -32,6 +32,8 @@ namespace LocalNetworkTest
         public void DataRecieved(string ipAddr, byte[] data)
         {
             Console.WriteLine(Encoding.ASCII.GetString(data));
+            if (netMan.Send(ipAddr, Encoding.ASCII.GetBytes("Replying to data recieved")))
+                Console.WriteLine("Data sent back to client");
         }
 
         public void ConnectionClosed(string ipAddr)
