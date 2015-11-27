@@ -4,18 +4,26 @@ using System.Text;
 using System.Threading;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
+
 
 namespace CS300Net
 {
+
     /// <summary>
     /// Handles connections between our dispatch server and emergency vehicle clients.
     /// Provides methods to listen for incoming connections, connect, send and recieve data asynchronously.
-    /// Any objects requiring the data must implement the NetObserver interface and register to the NetworkManager.
-    /// </summary>
+    /// Static methods Encode and Decode are available for encoding and decoding objects you wish to send over the network.
+    /// Any objects requiring the data must implement the NetObserver interface and register to the NetworkManager.</summary>
     public class NetworkManager
     {
-        private static IPAddress _localIP = null;
-        public static IPAddress LocalIP
+        private enum NetworkEvent { CONN_OPEN, DATA_RECV, CONN_CLOSE };
+
+        private static string _localIP = null;
+        /// <summary>
+        /// The local ipv4 address of the machine.</summary>
+        public static string LocalIP
         {
             get
             {
@@ -35,21 +43,29 @@ namespace CS300Net
         private bool removing;
 
         private List<NetObserver> observers;
-        private List<Tuple<string, TcpClient>> _connected;
-        public List<Tuple<string, TcpClient>> Connected
+        private readonly List<Tuple<string, TcpClient>> _connected;
+        /// <summary>
+        /// A list of the connected clients as their ipv4 addresses.</summary>
+        public List<string> Connected
         {
             get 
             {
-                return _connected;
+                List<string> copy = new List<string>();
+                foreach (Tuple<string, TcpClient> tup in _connected)
+                {
+                    copy.Add(tup.Item1);
+                }
+                return copy;
             }
         }
 
         /// <summary>
-        /// Create a new NetworkManager instance to handle connecting, sending and recieving data to remote applications
-        /// </summary>
+        /// Create a new NetworkManager instance to handle connecting, sending and recieving data to remote applications.
+        /// Call Listen() to allow incoming connections, and StopListen() to disallow. You must convert any data that you wish
+        /// to send to an array of bytes.</summary>
         public NetworkManager()
         {
-            listener = new TcpListener(LocalIP, portNum);
+            listener = new TcpListener(IPAddress.Parse(LocalIP), portNum);
             listening = false;
             listenThread = null;
             removeQueue = new Queue<Action>();
@@ -66,10 +82,9 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Get the IPAddress object for the local address of the machine this code is running on
-        /// </summary>
+        /// Get the IPAddress object for the local address of the machine this code is running on</summary>
         /// <returns>Returns the Local IP</returns>
-        private static IPAddress GetLocalIPAddress()
+        private static string GetLocalIPAddress()
         {
             IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
             IPAddress localIP = null;
@@ -81,12 +96,50 @@ namespace CS300Net
                 }
             }
 
-            return localIP;
+            return localIP.ToString();
         }
 
         /// <summary>
-        /// Begin listening for incoming connections asynchronously.
-        /// </summary>
+        /// Encode an object to an array of bytes. Object must be marked as serializable.</summary>
+        /// <param name="obj">Object to encode</param>
+        /// <returns>Returns an array of bytes representing the encoded object.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if obj is null</exception>
+        /// <exception cref="System.Runtime.Serialization.SerializationException">Thrown if obj is not marked as serializable</exception>
+        public static byte[] Encode(object obj)
+        {
+            if (obj == null)
+                throw new ArgumentNullException("obj");
+            BinaryFormatter bf = new BinaryFormatter();
+            using (MemoryStream ms = new MemoryStream())
+            {
+                bf.Serialize(ms, obj);
+                return ms.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Decode an array of bytes that was previously encoded.</summary>
+        /// <typeparam name="T">The type of the object being decoded.</typeparam>
+        /// <param name="encoded">Array of bytes object was encoded to.</param>
+        /// <returns>The decoded object</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the byte array is null.</exception>
+        /// <exception cref="IOException">Thrown if there is an error writing the bytes to the stream.</exception>
+        public static T Decode<T>(byte[] encoded)
+        {
+            if (encoded == null)
+                throw new ArgumentNullException("encoded");
+            BinaryFormatter bf = new BinaryFormatter();
+            using (MemoryStream ms = new MemoryStream())
+            {
+                ms.Write(encoded, 0, encoded.Length);
+                ms.Seek(0, SeekOrigin.Begin);
+                T obj = (T)bf.Deserialize(ms);
+                return obj;
+            }
+        }
+
+        /// <summary>
+        /// Begin listening for incoming connections asynchronously.</summary>
         public void Listen()
         {
             if (listening) return;
@@ -97,8 +150,7 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Start listening for incoming connections, should be called on a separate thread.
-        /// </summary>
+        /// Start listening for incoming connections, should be called on a separate thread.</summary>
         protected void _Listen()
         {
             try
@@ -116,7 +168,9 @@ namespace CS300Net
                 while (listener.Pending())
                 {
                     TcpClient client = listener.AcceptTcpClient();
-                    _connected.Add(new Tuple<string, TcpClient>(client.Client.RemoteEndPoint.ToString(), client));
+                    string clientIP = client.Client.RemoteEndPoint.ToString().Split(':')[0];
+                    _connected.Add(new Tuple<string, TcpClient>(clientIP, client));
+                    Notify(NetworkEvent.CONN_OPEN, clientIP);
 
                     Thread clientThread = new Thread(() => Recieve(client));
                     clientThread.Start();
@@ -125,8 +179,7 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Stop listening for new connections.
-        /// </summary>
+        /// Stop listening for new connections.</summary>
         public void StopListen()
         {
             if (!listening) return;
@@ -137,8 +190,7 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Disconnect from all active connections.
-        /// </summary>
+        /// Disconnect from all active connections.</summary>
         public void Disconnect()
         {
             foreach(Tuple<string, TcpClient> conn in _connected)
@@ -151,8 +203,7 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Attempt to connect to the designated ipv4 address without port number and start recieving data asynchronously.
-        /// </summary>
+        /// Attempt to connect to the designated ipv4 address without port number and start recieving data asynchronously.</summary>
         /// <param name="ipAddr">An ipv4 address without a port number.</param>
         /// <returns>Returns true if connection is successful, false otherwise.</returns>
         /// <exception cref="ArgumentNullException">Thrown when the argument is null.</exception>
@@ -163,7 +214,8 @@ namespace CS300Net
             try
             {
                 TcpClient newConn = new TcpClient(ipAddr, portNum);
-                _connected.Add(new Tuple<string, TcpClient>(newConn.Client.RemoteEndPoint.ToString(), newConn));
+                string clientIP = newConn.Client.RemoteEndPoint.ToString().Split(':')[0];
+                _connected.Add(new Tuple<string, TcpClient>(clientIP, newConn));
 
                 Thread newConnThread = new Thread(() => Recieve(newConn));
 
@@ -182,8 +234,7 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Send an array of bytes to the destination IP address if we are connected
-        /// </summary>
+        /// Send an array of bytes to the destination IP address if we are connected</summary>
         /// <param name="destIP">Destination ipv4 address without port listed</param>
         /// <param name="data">Array of bytes to send</param>
         /// <returns>Returns true if data is successfully sent, false if the connection has been closed</returns>
@@ -196,8 +247,6 @@ namespace CS300Net
             if (destIP == null)
                 throw new ArgumentNullException("destIP");
             TcpClient client = null;
-
-            destIP = destIP + ":" + portNum.ToString();
 
             foreach (Tuple<string, TcpClient> conn in _connected)
             {
@@ -229,24 +278,8 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Called when a connection thread recieves data. Calls the DataRecieved(data) function on all observers, 
-        /// data will never be null.
-        /// </summary>
-        /// <param name="data">The byte array that was recieved.</param>
-        protected void DataRecieved(byte[] data)
-        {
-            if (data == null)
-                return;
-            foreach(NetObserver obs in observers)
-            {
-                obs.DataRecieved(data);
-            }
-        }
-
-        /// <summary>
         /// Start recieving data from a connected client. 
-        /// This method is blocking.
-        /// </summary>
+        /// This method is blocking.</summary>
         /// <param name="client">Client to start recieving data from.</param>
         protected void Recieve(TcpClient client)
         {
@@ -254,6 +287,7 @@ namespace CS300Net
             byte[] buffer = new byte[1024];
             StringBuilder completeMessage = new StringBuilder();
             int numRead = 0;
+            string clientIP = client.Client.RemoteEndPoint.ToString().Split(':')[0];
 
             try
             {
@@ -266,7 +300,7 @@ namespace CS300Net
                     } while (ns.DataAvailable);
                     if (numRead == 0)
                         throw new ObjectDisposedException("TcpClient");
-                    DataRecieved(Encoding.ASCII.GetBytes(completeMessage.ToString()));
+                    Notify(NetworkEvent.DATA_RECV, clientIP, Encoding.ASCII.GetBytes(completeMessage.ToString()));
                     completeMessage.Clear();
                 }
             }
@@ -283,13 +317,13 @@ namespace CS300Net
                         }
                     }
                 });
+                Notify(NetworkEvent.CONN_CLOSE, clientIP);
                 CleanupConnected();
             }
         }
 
         /// <summary>
-        /// Run the removal queue to remove any connections that have been closed.
-        /// </summary>
+        /// Run the removal queue to remove any connections that have been closed.</summary>
         private void CleanupConnected()
         {
             if (removing) return;
@@ -310,8 +344,7 @@ namespace CS300Net
 
         /// <summary>
         /// Register an observer to the NetworkManager, 
-        /// DataRecieved on the observer will be called whenever new data is recieved.
-        /// </summary>
+        /// DataRecieved on the observer will be called whenever new data is recieved.</summary>
         /// <param name="obs">NetObserver object to register</param>
         public void Register(NetObserver obs)
         {
@@ -319,13 +352,56 @@ namespace CS300Net
         }
 
         /// <summary>
-        /// Removes an observer from the NetworkManager.
-        /// </summary>
+        /// Removes an observer from the NetworkManager.</summary>
         /// <param name="obs">NetObserver object to unregister.</param>
         /// <returns>Returns true if the observer was removed, false if it was not found in the observer list</returns>
         public bool Unregister(NetObserver obs)
         {
             return observers.Remove(obs);
+        }
+
+        /// <summary>
+        /// Notifies any observers if a networking event occurs, like a new connection opens, or data is recieved.</summary>
+        /// <param name="netEvent">The event code specifying what function to call on the observer</param>
+        /// <param name="ipAddr">The IP Address that the event is occuring from.</param>
+        /// <param name="data">Any data that should be passed along to the observer.</param>
+        private void Notify(NetworkEvent netEvent, string ipAddr, byte[] data = null)
+        {
+            try
+            {
+                if (ipAddr == null)
+                    throw new ArgumentNullException("ipAddr");
+                foreach (NetObserver obs in observers)
+                {
+                    switch (netEvent)
+                    {
+                        case NetworkEvent.CONN_OPEN:
+                            obs.ConnectionOpened(ipAddr);
+                            break;
+                        case NetworkEvent.DATA_RECV:
+                            if (data == null)
+                                throw new ArgumentNullException("data");
+                            obs.DataRecieved(ipAddr, data);
+                            break;
+                        case NetworkEvent.CONN_CLOSE:
+                            obs.ConnectionClosed(ipAddr);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            catch (ArgumentNullException an)
+            {
+                if (an.ParamName.Equals("ipAddr"))
+                {
+                    Console.WriteLine("No IP Address provided to notify observers");
+                }
+                else if (an.ParamName.Equals("data"))
+                {
+                    Console.WriteLine("Data must be a non-null value");
+                }
+            }
         }
     }
 }

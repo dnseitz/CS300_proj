@@ -33,14 +33,18 @@ namespace LocalNetworkTest
                 Console.Write("Enter message to send to server: ");
                 msg = Console.ReadLine();
                 netMan.Send(ipAddr, Encoding.ASCII.GetBytes(msg));
-            } while (msg.Equals("exit"));
+            } while (!msg.Equals("exit"));
 
             netMan.Disconnect();
         }
 
-        public void DataRecieved(byte[] data)
+        public void ConnectionOpened(string ipAddr) { return; }
+
+        public void DataRecieved(string ipAddr, byte[] data)
         {
             Console.WriteLine(Encoding.ASCII.GetString(data));
         }
+        
+        public void ConnectionClosed(string ipAddr) { return; }
     }
 }

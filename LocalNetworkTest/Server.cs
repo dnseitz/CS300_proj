@@ -26,9 +26,19 @@ namespace LocalNetworkTest
             netMan.Disconnect();
         }
 
-        public void DataRecieved(byte[] data)
+        public void ConnectionOpened(string ipAddr)
+        {
+            Console.WriteLine("{0} connected", ipAddr);
+        }
+
+        public void DataRecieved(string ipAddr, byte[] data)
         {
             Console.WriteLine(Encoding.ASCII.GetString(data));
+        }
+
+        public void ConnectionClosed(string ipAddr)
+        {
+            Console.WriteLine("{0} closed", ipAddr);
         }
     }
 }

@@ -8,6 +8,8 @@ namespace CS300Net
 {
     public interface NetObserver
     {
-        void DataRecieved(byte[] data);
+        void ConnectionOpened(string ipAddr);
+        void DataRecieved(string ipAddr, byte[] data);
+        void ConnectionClosed(string ipAddr);
     }
 }
