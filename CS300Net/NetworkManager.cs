@@ -294,6 +294,7 @@ namespace CS300Net
         /// <param name="client">Client to start recieving data from.</param>
         private void Recieve(TcpClient client)
         {
+            Console.WriteLine("Started recieving from a client");
             NetworkStream ns = client.GetStream();
             byte[] buffer = new byte[1024];
             StringBuilder completeMessage = new StringBuilder();
@@ -315,21 +316,24 @@ namespace CS300Net
                     completeMessage.Clear();
                 }
             }
-            catch (ObjectDisposedException)
+            catch (Exception e)
             {
-                removeQueue.Enqueue(() =>
+                if (e is IOException || e is ObjectDisposedException)
                 {
-                    for (int i = 0; i < _connected.Count; ++i)
+                    removeQueue.Enqueue(() =>
                     {
-                        if (_connected[i].Item2 == client)
+                        for (int i = 0; i < _connected.Count; ++i)
                         {
-                            _connected.RemoveAt(i);
-                            break;
+                            if (_connected[i].Item2 == client)
+                            {
+                                _connected.RemoveAt(i);
+                                break;
+                            }
                         }
-                    }
-                });
-                Notify(NetworkEvent.CONN_CLOSE, clientIP);
-                CleanupConnected();
+                    });
+                    Notify(NetworkEvent.CONN_CLOSE, clientIP);
+                    CleanupConnected();
+                }
             }
         }
 
