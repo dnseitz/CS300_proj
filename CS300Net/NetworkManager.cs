@@ -201,7 +201,7 @@ namespace CS300Net
         /// Stop listening for new connections.</summary>
         public void StopListen()
         {
-            Contract.Ensures(listenThread.ThreadState == ThreadState.Stopped);
+            Contract.Ensures(listenThread == null || (listenThread != null && listenThread.ThreadState == ThreadState.Stopped));
 
             if (!listening) return;
 
@@ -314,6 +314,20 @@ namespace CS300Net
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Send an object to the destination IP address if we are connected, use <see cref="Decode{T}(byte[])"/> at the endpoint to use the object.</summary>
+        /// <param name="destIP">Destination ipv4 address without port listed</param>
+        /// <param name="obj">Object to encode and send to destination</param>
+        /// <returns>Returns true if the object was successfully encoded and sent, false otherwise</returns>
+        /// <exception cref="ArgumentNullException">Thrown when either argument is null</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the destination address is not connected to</exception>
+        public bool Send(string destIP, object obj)
+        {
+            byte[] data = Encode(obj);
+
+            return Send(destIP, data);
         }
 
         /// <summary>

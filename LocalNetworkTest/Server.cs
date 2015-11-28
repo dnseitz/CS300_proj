@@ -12,6 +12,8 @@ namespace LocalNetworkTest
         {
             Server server = new Server();
 
+            netMan.StopListen();
+
             netMan.Register(server);
 
             Console.WriteLine(NetworkManager.LocalIP.ToString());
