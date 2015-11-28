@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
+using System.Diagnostics.Contracts;
 
 
 namespace CS300Net
@@ -24,43 +25,15 @@ namespace CS300Net
         private enum NetworkEvent { CONN_OPEN, DATA_RECV, CONN_CLOSE };
 
         private static string _localIP = null;
-        /// <summary>
-        /// The local ipv4 address of the machine.</summary>
-        public static string LocalIP
-        {
-            get
-            {
-                if (_localIP == null)
-                {
-                    _localIP = GetLocalIPAddress();
-                }
-                return _localIP;
-            }
-        }
 
         private const int portNum = 50033;
-        private TcpListener listener;
+        private readonly TcpListener listener;
         private bool listening;
         private Thread listenThread;
-        private Queue<Action> removeQueue;
+        private readonly Queue<Action> removeQueue;
         private bool removing;
-
-        private List<NetObserver> observers;
+        private readonly List<NetObserver> observers;
         private readonly List<Tuple<string, TcpClient>> _connected;
-        /// <summary>
-        /// A list of the connected clients as their ipv4 addresses.</summary>
-        public List<string> Connected
-        {
-            get 
-            {
-                List<string> copy = new List<string>();
-                foreach (Tuple<string, TcpClient> tup in _connected)
-                {
-                    copy.Add(tup.Item1);
-                }
-                return copy;
-            }
-        }
 
         /// <summary>
         /// Create a new NetworkManager instance to handle connecting, sending and recieving data to remote applications.</summary>
@@ -75,11 +48,42 @@ namespace CS300Net
             _connected = new List<Tuple<string, TcpClient>>();
         }
 
+        /// <summary>
+        /// Cleans up resources used by the <see cref="NetworkManager"/> class.
+        /// </summary>
         ~NetworkManager()
         {
             StopListen();
             Disconnect();
             observers.Clear();
+        }
+
+        /// <summary>
+        /// The local ipv4 address of the machine.</summary>
+        public static string LocalIP
+        {
+            get
+            {
+                if (_localIP == null)
+                {
+                    _localIP = GetLocalIPAddress();
+                }
+                return _localIP;
+            }
+        }
+        /// <summary>
+        /// A list of the connected clients as their ipv4 addresses.</summary>
+        public List<string> Connected
+        {
+            get
+            {
+                List<string> copy = new List<string>();
+                foreach (Tuple<string, TcpClient> tup in _connected)
+                {
+                    copy.Add(tup.Item1);
+                }
+                return copy;
+            }
         }
 
         /// <summary>
@@ -111,6 +115,9 @@ namespace CS300Net
         {
             if (obj == null)
                 throw new ArgumentNullException("obj");
+            Contract.Ensures(Contract.Result<byte[]>() != null);
+            Contract.EndContractBlock();
+
             BinaryFormatter bf = new BinaryFormatter();
             using (MemoryStream ms = new MemoryStream())
             {
@@ -131,6 +138,9 @@ namespace CS300Net
         {
             if (encoded == null)
                 throw new ArgumentNullException("encoded");
+            Contract.Ensures(Contract.Result<T>() != null);
+            Contract.EndContractBlock();
+
             BinaryFormatter bf = new BinaryFormatter();
             using (MemoryStream ms = new MemoryStream())
             {
@@ -145,6 +155,8 @@ namespace CS300Net
         /// Begin listening for incoming connections asynchronously.</summary>
         public void Listen()
         {
+            Contract.Ensures(listenThread.ThreadState == ThreadState.Running);
+
             if (listening) return;
 
             listenThread = new Thread(_Listen);
@@ -158,6 +170,8 @@ namespace CS300Net
         /// This should be called on a separate thread to avoid blocking the main thread.</remarks>
         private void _Listen()
         {
+            Contract.Ensures(listening == false);
+
             try
             {
                 listener.Start();
@@ -187,6 +201,8 @@ namespace CS300Net
         /// Stop listening for new connections.</summary>
         public void StopListen()
         {
+            Contract.Ensures(listenThread.ThreadState == ThreadState.Stopped);
+
             if (!listening) return;
 
             listening = false;
@@ -198,6 +214,7 @@ namespace CS300Net
         /// Disconnect from all active connections.</summary>
         public void Disconnect()
         {
+            Contract.Ensures(listening || (!listening && _connected.Count == 0));
             foreach(Tuple<string, TcpClient> conn in _connected)
             {
                 conn.Item2.Close();
@@ -211,11 +228,18 @@ namespace CS300Net
         /// Attempt to connect to the designated ipv4 address without port number and start recieving data asynchronously.</summary>
         /// <param name="ipAddr">An ipv4 address without a port number.</param>
         /// <returns>Returns true if connection is successful, false otherwise.</returns>
+        /// <exception cref="ArgumentException">Thrown when you attempt to connect to yourself</exception>
         /// <exception cref="ArgumentNullException">Thrown when the argument is null.</exception>
         public bool Connect(string ipAddr)
         {
             if (ipAddr == null)
                 throw new ArgumentNullException("ipAddr");
+            if (ipAddr == LocalIP)
+                throw new ArgumentException("You cannot connect to yourself", "ipAddr");
+            Contract.Ensures((Contract.Result<bool>() && _connected.Find(x => x.Item1 == ipAddr) != null) ||
+                             (!Contract.Result<bool>() && _connected.Find(x => x.Item1 == ipAddr) == null));
+            Contract.EndContractBlock();
+
             try
             {
                 TcpClient newConn = new TcpClient(ipAddr, portNum);
@@ -252,6 +276,8 @@ namespace CS300Net
                 throw new ArgumentNullException("data");
             if (destIP == null)
                 throw new ArgumentNullException("destIP");
+            Contract.EndContractBlock();
+
             TcpClient client = null;
 
             CleanupConnected();
@@ -278,10 +304,12 @@ namespace CS300Net
                     ns.Write(data, 0, data.Length);
                     ns.Flush();
                 }
+                else
+                    return false;
             }
             catch(Exception e)
             {
-                Console.WriteLine("Object Disposed Exception: {0}", e.ToString());
+                Console.WriteLine("Exception while trying to write data: {0}", e.ToString());
                 return false;
             }
 
@@ -294,7 +322,11 @@ namespace CS300Net
         /// <param name="client">Client to start recieving data from.</param>
         private void Recieve(TcpClient client)
         {
-            Console.WriteLine("Started recieving from a client");
+            Contract.Requires(client != null, "Client to start recieving can't be null");
+            Contract.Requires(client.Connected, "Client must be connected to start recieving");
+            Contract.Requires(_connected.Find(x => x.Item2 == client) != null, "Client must be in connected list");
+            Contract.Ensures(client.Connected == false);
+            
             NetworkStream ns = client.GetStream();
             byte[] buffer = new byte[1024];
             StringBuilder completeMessage = new StringBuilder();
@@ -320,6 +352,7 @@ namespace CS300Net
             {
                 if (e is IOException || e is ObjectDisposedException)
                 {
+                    client.Close();
                     removeQueue.Enqueue(() =>
                     {
                         for (int i = 0; i < _connected.Count; ++i)
@@ -361,9 +394,16 @@ namespace CS300Net
         /// Register an observer to the NetworkManager, 
         /// DataRecieved on the observer will be called whenever new data is recieved.</summary>
         /// <param name="obs">NetObserver object to register</param>
-        public void Register(NetObserver obs)
+        public bool Register(NetObserver obs)
         {
-            observers.Add(obs);
+            Contract.Requires(obs != null);
+            Contract.Ensures(observers.Contains(obs));
+            if (!observers.Contains(obs))
+            {
+                observers.Add(obs);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -372,6 +412,7 @@ namespace CS300Net
         /// <returns>Returns true if the observer was removed, false if it was not found in the observer list</returns>
         public bool Unregister(NetObserver obs)
         {
+            Contract.Ensures(!observers.Contains(obs));
             return observers.Remove(obs);
         }
 
@@ -380,41 +421,30 @@ namespace CS300Net
         /// <param name="netEvent">The event code specifying what function to call on the observer</param>
         /// <param name="ipAddr">The IP Address that the event is occuring from.</param>
         /// <param name="data">Any data that should be passed along to the observer.</param>
+        /// <exception cref="ArgumentNullException">Thrown when ipAddr is null, or data is null when it is required, check exception ParamName to see which failed.</exception>
         private void Notify(NetworkEvent netEvent, string ipAddr, byte[] data = null)
         {
-            try
+            if (ipAddr == null)
+                throw new ArgumentNullException("ipAddr");
+            Contract.EndContractBlock();
+
+            foreach (NetObserver obs in observers)
             {
-                if (ipAddr == null)
-                    throw new ArgumentNullException("ipAddr");
-                foreach (NetObserver obs in observers)
+                switch (netEvent)
                 {
-                    switch (netEvent)
-                    {
-                        case NetworkEvent.CONN_OPEN:
-                            obs.ConnectionOpened(ipAddr);
-                            break;
-                        case NetworkEvent.DATA_RECV:
-                            if (data == null)
-                                throw new ArgumentNullException("data");
-                            obs.DataRecieved(ipAddr, data);
-                            break;
-                        case NetworkEvent.CONN_CLOSE:
-                            obs.ConnectionClosed(ipAddr);
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
-            catch (ArgumentNullException an)
-            {
-                if (an.ParamName.Equals("ipAddr"))
-                {
-                    Console.WriteLine("No IP Address provided to notify observers");
-                }
-                else if (an.ParamName.Equals("data"))
-                {
-                    Console.WriteLine("Data must be a non-null value");
+                    case NetworkEvent.CONN_OPEN:
+                        obs.ConnectionOpened(ipAddr);
+                        break;
+                    case NetworkEvent.DATA_RECV:
+                        if (data == null)
+                            throw new ArgumentNullException("data");
+                        obs.DataRecieved(ipAddr, data);
+                        break;
+                    case NetworkEvent.CONN_CLOSE:
+                        obs.ConnectionClosed(ipAddr);
+                        break;
+                    default:
+                        break;
                 }
             }
         }
