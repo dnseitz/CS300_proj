@@ -234,8 +234,10 @@ namespace CS300Net
         {
             if (ipAddr == null)
                 throw new ArgumentNullException("ipAddr");
+            /* We would normally have this, but connecting to ourself can be useful for testing
             if (ipAddr == LocalIP)
                 throw new ArgumentException("You cannot connect to yourself", "ipAddr");
+            */
             Contract.Ensures((Contract.Result<bool>() && _connected.Find(x => x.Item1 == ipAddr) != null) ||
                              (!Contract.Result<bool>() && _connected.Find(x => x.Item1 == ipAddr) == null));
             Contract.EndContractBlock();
