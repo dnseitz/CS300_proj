@@ -18,14 +18,16 @@ namespace CS300Net
     /// Provides methods to listen for incoming connections, connect, send and recieve data asynchronously.
     /// Static methods Encode and Decode are available for encoding and decoding objects you wish to send over the network.
     /// <para>Call Listen() to allow incoming connections, and StopListen() to disallow. You must convert any data that you wish
-    /// to send to an array of bytes. Use the ipv4 of the server you wish to connect to.
+    /// to send to an array of bytes with the Encode method. Use the ipv4 of the server you wish to connect to.
     /// Any objects requiring the data must implement the NetObserver interface and register to the NetworkManager.</para></summary>
     public class NetworkManager
     {
         private enum NetworkEvent { CONN_OPEN, DATA_RECV, CONN_CLOSE };
 
+        #region StaticFields
         private static string _localIP = null;
-
+        #endregion
+        #region Fields
         private const int portNum = 50033;
         private readonly TcpListener listener;
         private bool listening;
@@ -34,7 +36,15 @@ namespace CS300Net
         private bool removing;
         private readonly List<NetObserver> observers;
         private readonly List<Tuple<string, TcpClient>> _connected;
-
+        #endregion
+        #region ObjectInvariant
+        [ContractInvariantMethod]
+        private void ObjectInvariant()
+        {
+            Contract.Invariant(Connected.TrueForAll(x => Connected.FindAll(y => x == y).Count <= 1));
+        }
+        #endregion
+        #region Constructors
         /// <summary>
         /// Create a new NetworkManager instance to handle connecting, sending and recieving data to remote applications.</summary>
         public NetworkManager()
@@ -47,7 +57,8 @@ namespace CS300Net
             observers = new List<NetObserver>();
             _connected = new List<Tuple<string, TcpClient>>();
         }
-
+        #endregion
+        #region Destructors
         /// <summary>
         /// Cleans up resources used by the <see cref="NetworkManager"/> class.
         /// </summary>
@@ -57,7 +68,8 @@ namespace CS300Net
             Disconnect();
             observers.Clear();
         }
-
+        #endregion
+        #region Properties
         /// <summary>
         /// The local ipv4 address of the machine.</summary>
         public static string LocalIP
@@ -85,7 +97,8 @@ namespace CS300Net
                 return copy;
             }
         }
-
+        #endregion
+        #region StaticMethods
         /// <summary>
         /// Get the IPAddress object for the local address of the machine this code is running on</summary>
         /// <returns>Returns the Local IP</returns>
@@ -150,7 +163,8 @@ namespace CS300Net
                 return obj;
             }
         }
-
+        #endregion
+        #region ListenMethods
         /// <summary>
         /// Begin listening for incoming connections asynchronously.</summary>
         public void Listen()
@@ -188,11 +202,13 @@ namespace CS300Net
                 {
                     TcpClient client = listener.AcceptTcpClient();
                     string clientIP = client.Client.RemoteEndPoint.ToString().Split(':')[0];
+                    if (clientIP.Equals(LocalIP))
+                        clientIP = clientIP + "-reciever";
                     _connected.Add(new Tuple<string, TcpClient>(clientIP, client));
-                    Notify(NetworkEvent.CONN_OPEN, clientIP);
-
                     Thread clientThread = new Thread(() => Recieve(client));
                     clientThread.Start();
+                    
+                    Notify(NetworkEvent.CONN_OPEN, clientIP);
                 }
             }
         }
@@ -209,18 +225,21 @@ namespace CS300Net
             while (listenThread.ThreadState != ThreadState.Stopped);
             listener.Stop();
         }
-
+        #endregion
+        #region Methods
         /// <summary>
         /// Disconnect from all active connections.</summary>
         public void Disconnect()
         {
             Contract.Ensures(listening || (!listening && _connected.Count == 0));
-            foreach(Tuple<string, TcpClient> conn in _connected)
+            lock(_connected)
             {
-                conn.Item2.Close();
-                removeQueue.Enqueue(() => _connected.Remove(conn));
+                foreach (Tuple<string, TcpClient> conn in _connected)
+                {
+                    conn.Item2.Close();
+                    removeQueue.Enqueue(() => _connected.Remove(conn));
+                }
             }
-
             CleanupConnected();
         }
 
@@ -241,16 +260,15 @@ namespace CS300Net
             Contract.Ensures((Contract.Result<bool>() && _connected.Find(x => x.Item1 == ipAddr) != null) ||
                              (!Contract.Result<bool>() && _connected.Find(x => x.Item1 == ipAddr) == null));
             Contract.EndContractBlock();
-
+            
             try
             {
                 TcpClient newConn = new TcpClient(ipAddr, portNum);
                 string clientIP = newConn.Client.RemoteEndPoint.ToString().Split(':')[0];
                 _connected.Add(new Tuple<string, TcpClient>(clientIP, newConn));
-
                 Thread newConnThread = new Thread(() => Recieve(newConn));
                 newConnThread.Start();
-     
+
                 return true;
             }
             catch (SocketException se)
@@ -342,25 +360,26 @@ namespace CS300Net
             Contract.Requires(client.Connected, "Client must be connected to start recieving");
             Contract.Requires(_connected.Find(x => x.Item2 == client) != null, "Client must be in connected list");
             Contract.Ensures(client.Connected == false);
-            
-            NetworkStream ns = client.GetStream();
-            byte[] buffer = new byte[1024];
-            StringBuilder completeMessage = new StringBuilder();
-            int numRead = 0;
-            string clientIP = client.Client.RemoteEndPoint.ToString().Split(':')[0];
 
             try
             {
+                string clientIP = client.Client.RemoteEndPoint.ToString().Split(':')[0];
+                NetworkStream ns = client.GetStream();
+            
+                byte[] buffer = new byte[1024];
+                StringBuilder completeMessage = new StringBuilder();
+                int numRead = 0;
+
                 while (client.Connected && ns.CanRead)
                 {
                     do
                     {
                         numRead = ns.Read(buffer, 0, buffer.Length);
-                        completeMessage.Append(Encoding.ASCII.GetString(buffer, 0, numRead));
+                        completeMessage.Append(Encoding.GetEncoding("Latin1").GetString(buffer));
                     } while (ns.DataAvailable);
                     if (numRead == 0)
                         throw new ObjectDisposedException("TcpClient");
-                    Notify(NetworkEvent.DATA_RECV, clientIP, Encoding.ASCII.GetBytes(completeMessage.ToString()));
+                    Notify(NetworkEvent.DATA_RECV, clientIP, Encoding.GetEncoding("Latin1").GetBytes(completeMessage.ToString()));
                     completeMessage.Clear();
                 }
             }
@@ -368,19 +387,22 @@ namespace CS300Net
             {
                 if (e is IOException || e is ObjectDisposedException)
                 {
-                    client.Close();
-                    removeQueue.Enqueue(() =>
+                    lock(_connected)
                     {
-                        for (int i = 0; i < _connected.Count; ++i)
+                        client.Close();
+                        removeQueue.Enqueue(() =>
                         {
-                            if (_connected[i].Item2 == client)
+                            for (int i = 0; i < _connected.Count; ++i)
                             {
-                                _connected.RemoveAt(i);
-                                break;
+                                if (_connected[i].Item2 == client)
+                                {
+                                    Notify(NetworkEvent.CONN_CLOSE, _connected[i].Item1);
+                                    _connected.RemoveAt(i);
+                                    break;
+                                }
                             }
-                        }
-                    });
-                    Notify(NetworkEvent.CONN_CLOSE, clientIP);
+                        });
+                    }
                     CleanupConnected();
                 }
             }
@@ -394,18 +416,19 @@ namespace CS300Net
             removing = true;
             try
             {
-                while(true)
+                while (true)
                 {
                     Action rem = removeQueue.Dequeue();
                     rem();
                 }
             }
-            catch(InvalidOperationException)
+            catch (InvalidOperationException)
             {
                 removing = false;
             }
         }
-
+        #endregion
+        #region ObserverMethods
         /// <summary>
         /// Register an observer to the NetworkManager, 
         /// DataRecieved on the observer will be called whenever new data is recieved.</summary>
@@ -464,5 +487,6 @@ namespace CS300Net
                 }
             }
         }
+        #endregion
     }
 }

@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using CS300Net;
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace NetworkUnitTests
 {
@@ -9,11 +10,47 @@ namespace NetworkUnitTests
     public class NetworkUnitTests
     {
         private NetworkManager netMan = new NetworkManager();
-        
+        private class TestObserver : NetObserver
+        {
+            public byte[] dataRecieved = null;
+            public bool recieved = false;
+
+            public void ConnectionClosed(string ipAddr)
+            {
+                //throw new NotImplementedException();
+            }
+
+            public void ConnectionOpened(string ipAddr)
+            {
+                //throw new NotImplementedException();
+            }
+
+            public void DataRecieved(string ipAddr, byte[] data)
+            {
+                dataRecieved = new byte[data.Length];
+                data.CopyTo(dataRecieved, 0);
+                foreach (byte aByte in data)
+                    Console.Write(aByte);
+                Console.WriteLine();
+                foreach (byte aByte in dataRecieved)
+                    Console.Write(aByte);
+                recieved = true;
+            }
+
+            public void Reset()
+            {
+                dataRecieved = null;
+                recieved = false;
+            }
+        }
+        private TestObserver obs = new TestObserver();
+
         [SetUp]
         public void Init()
         {
-            netMan = new NetworkManager();
+            //netMan = new NetworkManager();
+            obs.Reset();
+            netMan.Register(obs);
         }
 
         [TearDown]
@@ -21,6 +58,71 @@ namespace NetworkUnitTests
         {
             netMan.StopListen();
             netMan.Disconnect();
+        }
+
+        [Test]
+        [Property("ConnectTest", 1)]
+        public void ConnectSelf()
+        {
+            netMan.Listen();
+
+            if (!netMan.Connect(NetworkManager.LocalIP))
+                Assert.Fail("Failed to connect to self");
+        }
+
+        [Test]
+        [Property("ConnectTest", 1)]
+        public void SendRecieveData()
+        {
+            netMan.Listen();
+            byte[] data = Encoding.ASCII.GetBytes("Hello, World!");
+
+            if (!netMan.Connect(NetworkManager.LocalIP))
+                Assert.Fail("Failed to connect to self");
+
+            if (!netMan.Send(NetworkManager.LocalIP, data))
+                Assert.Fail("Failed to send data");
+
+            while (!obs.recieved);
+
+            Console.WriteLine("pre: {0}, post: {0}", data, obs.dataRecieved);
+            for (int i = 0; i < data.Length && i < obs.dataRecieved.Length; ++i)
+            {
+                Assert.That(data[i] == obs.dataRecieved[i]);
+            }
+        }
+
+        [Test]
+        [Property("ConnectTest", 1)]
+        public void SendRecieveEncodedData()
+        {
+            netMan.Listen();
+            int[] intArr = { 8, 9, 10 };
+            TestObject serializableObj = new TestObject('1', 2, 3, 4, 4f, "seven", intArr);
+
+            if (!netMan.Connect(NetworkManager.LocalIP))
+                Assert.Fail("Failed to connect to self");
+
+            byte[] data = NetworkManager.Encode(serializableObj);
+
+            if (!netMan.Send(NetworkManager.LocalIP, data))
+                Assert.Fail("Failed to send data");
+
+            while (!obs.recieved);
+
+            TestObject post = NetworkManager.Decode<TestObject>(obs.dataRecieved);
+
+            for (int i = 0; i < data.Length && i < obs.dataRecieved.Length; ++i)
+            {
+                Console.WriteLine("pre: {0}", data[i]);
+                Console.WriteLine("post: {0}", obs.dataRecieved[i]);
+                Assert.That(data[i] == obs.dataRecieved[i], "Data not the same here {0}: pre: {0} post: {0}", i);
+            }
+
+            Console.WriteLine("Pre: {0}", serializableObj.ToString());
+            Console.WriteLine("Post: {0}", post.ToString());
+
+            Assert.That(post.Equals(serializableObj));
         }
 
         [Test]
@@ -150,7 +252,7 @@ namespace NetworkUnitTests
     }
 
     [Serializable]
-    internal class TestObject
+    public class TestObject
     {
         char charfield;
         short shortfield;
@@ -199,7 +301,7 @@ namespace NetworkUnitTests
         }
     }
 
-    internal class UnserializableObject
+    public class UnserializableObject
     {
         int field1;
         int field2;
