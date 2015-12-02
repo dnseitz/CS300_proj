@@ -380,11 +380,11 @@ namespace CS300Net
                     do
                     {
                         numRead = ns.Read(buffer, 0, buffer.Length);
-                        completeMessage.Append(Encoding.GetEncoding("Latin1").GetString(buffer));
+                        completeMessage.Append(Encoding.ASCII.GetString(buffer));
                     } while (ns.DataAvailable);
                     if (numRead == 0)
                         throw new ObjectDisposedException("TcpClient");
-                    Notify(NetworkEvent.DATA_RECV, clientIP, Encoding.GetEncoding("Latin1").GetBytes(completeMessage.ToString()));
+                    Notify(NetworkEvent.DATA_RECV, clientIP, Encoding.ASCII.GetBytes(completeMessage.ToString()));
                     completeMessage.Clear();
                 }
             }
