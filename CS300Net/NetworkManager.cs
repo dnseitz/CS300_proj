@@ -41,7 +41,7 @@ namespace CS300Net
         [ContractInvariantMethod]
         private void ObjectInvariant()
         {
-            Contract.Invariant(Connected.TrueForAll(x => Connected.FindAll(y => x == y).Count <= 1));
+            Contract.Invariant(Connected.TrueForAll(x => Connected.FindAll(y => x == y).Count == 1));
         }
         #endregion
         #region Constructors
