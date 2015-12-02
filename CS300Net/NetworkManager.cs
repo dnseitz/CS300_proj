@@ -47,7 +47,7 @@ namespace CS300Net
         #region Constructors
         /// <summary>
         /// Create a new NetworkManager instance to handle connecting, sending and recieving data to remote applications.</summary>
-        public NetworkManager()
+        public NetworkManager(params NetObserver[] obs)
         {
             listener = new TcpListener(IPAddress.Parse(LocalIP), portNum);
             listening = false;
@@ -56,6 +56,12 @@ namespace CS300Net
             removing = false;
             observers = new List<NetObserver>();
             _connected = new List<Tuple<string, TcpClient>>();
+
+            foreach (NetObserver ob in obs)
+            {
+                if (ob != null)
+                    Register(ob);
+            }
         }
         #endregion
         #region Destructors
