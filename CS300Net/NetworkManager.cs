@@ -97,6 +97,11 @@ namespace CS300Net
                 return copy;
             }
         }
+
+        public int Port
+        {
+            get { return portNum; }
+        }
         #endregion
         #region StaticMethods
         /// <summary>
