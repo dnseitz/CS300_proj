@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.NetworkInformation;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using System.Diagnostics.Contracts;
@@ -26,6 +27,7 @@ namespace CS300Net
 
         #region StaticFields
         private static string _localIP = null;
+        private static IPAddress[] _ipAddrs = null;
         #endregion
         #region Fields
         private const int portNum = 50033;
@@ -62,6 +64,9 @@ namespace CS300Net
                 if (ob != null)
                     Register(ob);
             }
+
+            if (observers.Count == 0)
+                Console.WriteLine("No observers registered to NetworkManager on initialization!");
         }
         #endregion
         #region Destructors
@@ -90,6 +95,19 @@ namespace CS300Net
             }
         }
         /// <summary>
+        /// An array of ip addresses this machine is using.</summary>
+        public static IPAddress[] IPAddresses
+        {
+            get
+            {
+                if (_ipAddrs == null)
+                {
+                    _ipAddrs = GetIPAddresses();
+                }
+                return _ipAddrs;
+            }
+        }
+        /// <summary>
         /// A list of the connected clients as their ipv4 addresses.</summary>
         public List<string> Connected
         {
@@ -103,7 +121,8 @@ namespace CS300Net
                 return copy;
             }
         }
-
+        /// <summary>
+        /// The Port this program is running on.</summary>
         public int Port
         {
             get { return portNum; }
@@ -126,6 +145,30 @@ namespace CS300Net
             }
 
             return localIP.ToString();
+        }
+
+        /// <summary>
+        /// Get an array of all the IPAddresses for this machine.</summary>
+        /// <returns>Returns an array of IPs</returns>
+        private static IPAddress[] GetIPAddresses()
+        {
+            IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
+            NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
+            foreach (NetworkInterface ni in nics)
+            {
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet)
+                {
+                    Console.WriteLine(ni.Name);
+                    foreach (UnicastIPAddressInformation ip in ni.GetIPProperties().UnicastAddresses)
+                    {
+                        if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            Console.WriteLine(ip.Address);
+                        }
+                    }
+                }
+            }
+            return host.AddressList;
         }
 
         /// <summary>
@@ -173,6 +216,19 @@ namespace CS300Net
                 T obj = (T)bf.Deserialize(ms);
                 return obj;
             }
+        }
+
+        private static bool IsNumber(object value)
+        {
+            return value is short
+                    || value is ushort
+                    || value is int
+                    || value is uint
+                    || value is long
+                    || value is ulong
+                    || value is float
+                    || value is double
+                    || value is decimal;
         }
         #endregion
         #region ListenMethods
@@ -356,7 +412,16 @@ namespace CS300Net
         /// <exception cref="InvalidOperationException">Thrown when the destination address is not connected to</exception>
         public bool Send(string destIP, object obj)
         {
+            if (IsNumber(obj))
+                return Send(destIP, obj.ToString());
             byte[] data = Encode(obj);
+
+            return Send(destIP, data);
+        }
+
+        public bool Send(string destIP, string msg)
+        {
+            byte[] data = Encoding.GetEncoding("ISO-8859-1").GetBytes(msg);
 
             return Send(destIP, data);
         }
@@ -386,11 +451,11 @@ namespace CS300Net
                     do
                     {
                         numRead = ns.Read(buffer, 0, buffer.Length);
-                        completeMessage.Append(Encoding.ASCII.GetString(buffer));
+                        completeMessage.Append(Encoding.GetEncoding("ISO-8859-1").GetString(buffer));
                     } while (ns.DataAvailable);
                     if (numRead == 0)
                         throw new ObjectDisposedException("TcpClient");
-                    Notify(NetworkEvent.DATA_RECV, clientIP, Encoding.ASCII.GetBytes(completeMessage.ToString()));
+                    Notify(NetworkEvent.DATA_RECV, clientIP, Encoding.GetEncoding("ISO-8859-1").GetBytes(completeMessage.ToString()));
                     completeMessage.Clear();
                 }
             }
