@@ -231,6 +231,7 @@ namespace CS300Net
             if (listening) return;
 
             listenThread = new Thread(_Listen);
+            listenThread.IsBackground = true;
             listening = true;
             listenThread.Start();
         }
@@ -264,6 +265,7 @@ namespace CS300Net
                         clientIP = clientIP + "-reciever";
                     _connected.Add(new Tuple<string, TcpClient>(clientIP, client));
                     Thread clientThread = new Thread(() => Recieve(client));
+                    clientThread.IsBackground = true;
                     clientThread.Start();
                     
                     Notify(NetworkEvent.CONN_OPEN, clientIP);
@@ -325,6 +327,7 @@ namespace CS300Net
                 string clientIP = newConn.Client.RemoteEndPoint.ToString().Split(':')[0];
                 _connected.Add(new Tuple<string, TcpClient>(clientIP, newConn));
                 Thread newConnThread = new Thread(() => Recieve(newConn));
+                newConnThread.IsBackground = true;
                 newConnThread.Start();
 
                 return true;
@@ -565,6 +568,7 @@ namespace CS300Net
                     }
                 }
             });
+            notifyThread.IsBackground = true;
             notifyThread.Start();
         }
         #endregion
