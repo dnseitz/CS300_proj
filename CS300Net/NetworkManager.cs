@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Net.NetworkInformation;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 
@@ -66,7 +67,7 @@ namespace CS300Net
             }
 
             if (observers.Count == 0)
-                Console.WriteLine("No observers registered to NetworkManager on initialization!");
+                Debug.WriteLine("No observers registered to NetworkManager on initialization!");
         }
         #endregion
         #region Destructors
@@ -153,21 +154,6 @@ namespace CS300Net
         private static IPAddress[] GetIPAddresses()
         {
             IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
-            NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
-            foreach (NetworkInterface ni in nics)
-            {
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet)
-                {
-                    Console.WriteLine(ni.Name);
-                    foreach (UnicastIPAddressInformation ip in ni.GetIPProperties().UnicastAddresses)
-                    {
-                        if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
-                        {
-                            Console.WriteLine(ip.Address);
-                        }
-                    }
-                }
-            }
             return host.AddressList;
         }
 
@@ -218,6 +204,10 @@ namespace CS300Net
             }
         }
 
+        /// <summary>
+        /// Checks if an object is a number type.</summary>
+        /// <param name="value">The object to check</param>
+        /// <returns>True if the object is a number, false otherwise</returns>
         private static bool IsNumber(object value)
         {
             return value is short
@@ -236,7 +226,7 @@ namespace CS300Net
         /// Begin listening for incoming connections asynchronously.</summary>
         public void Listen()
         {
-            Contract.Ensures(listenThread.ThreadState == ThreadState.Running);
+            Contract.Ensures(listenThread.ThreadState == System.Threading.ThreadState.Running);
 
             if (listening) return;
 
@@ -259,8 +249,9 @@ namespace CS300Net
             }
             catch (SocketException se)
             {
-                Console.WriteLine(se.ErrorCode);
-                Console.WriteLine(se.ToString());
+                Debug.WriteLine(se.ErrorCode);
+                Debug.WriteLine(se.ToString());
+                listening = false;
             }
 
             while (listening)
@@ -284,12 +275,12 @@ namespace CS300Net
         /// Stop listening for new connections.</summary>
         public void StopListen()
         {
-            Contract.Ensures(listenThread == null || (listenThread != null && listenThread.ThreadState == ThreadState.Stopped));
+            Contract.Ensures(listenThread == null || (listenThread != null && listenThread.ThreadState == System.Threading.ThreadState.Stopped));
 
             if (!listening) return;
 
             listening = false;
-            while (listenThread.ThreadState != ThreadState.Stopped);
+            while (listenThread.ThreadState != System.Threading.ThreadState.Stopped);
             listener.Stop();
         }
         #endregion
@@ -340,12 +331,12 @@ namespace CS300Net
             }
             catch (SocketException se)
             {
-                Console.WriteLine("SocketException : ErrorCode({0})", se.ErrorCode);
+                Debug.WriteLine("SocketException : ErrorCode({0})", se.ErrorCode);
                 return false;
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.ToString());
+                Debug.WriteLine(e.ToString());
                 return false;
             }
         }
@@ -368,17 +359,20 @@ namespace CS300Net
             TcpClient client = null;
 
             CleanupConnected();
-            foreach (Tuple<string, TcpClient> conn in _connected)
+            lock (_connected)
             {
-                if (conn.Item1.Equals(destIP))
+                foreach (Tuple<string, TcpClient> conn in _connected)
                 {
-                    client = conn.Item2;
-                    break;
+                    if (conn.Item1.Equals(destIP))
+                    {
+                        client = conn.Item2;
+                        break;
+                    }
                 }
             }
             if (client == null)
             {
-                Console.WriteLine("IP addr not found");
+                Debug.WriteLine("IP addr not found");
                 throw new InvalidOperationException("Not connected to argument IP");
             }
 
@@ -396,7 +390,7 @@ namespace CS300Net
             }
             catch(Exception e)
             {
-                Console.WriteLine("Exception while trying to write data: {0}", e.ToString());
+                Debug.WriteLine("Exception while trying to write data: {0}", e.ToString());
                 return false;
             }
 
@@ -466,28 +460,26 @@ namespace CS300Net
                     completeMessage.Clear();
                 }
             }
-            catch (Exception e)
+            catch (Exception) {}
+            finally
             {
-                if (e is IOException || e is ObjectDisposedException)
+                lock (_connected)
                 {
-                    lock(_connected)
+                    client.Close();
+                    removeQueue.Enqueue(() =>
                     {
-                        client.Close();
-                        removeQueue.Enqueue(() =>
+                        for (int i = 0; i < _connected.Count; ++i)
                         {
-                            for (int i = 0; i < _connected.Count; ++i)
+                            if (_connected[i].Item2 == client)
                             {
-                                if (_connected[i].Item2 == client)
-                                {
-                                    Notify(NetworkEvent.CONN_CLOSE, _connected[i].Item1);
-                                    _connected.RemoveAt(i);
-                                    break;
-                                }
+                                Notify(NetworkEvent.CONN_CLOSE, _connected[i].Item1);
+                                _connected.RemoveAt(i);
+                                break;
                             }
-                        });
-                    }
-                    CleanupConnected();
+                        }
+                    });
                 }
+                CleanupConnected();
             }
         }
 
@@ -499,11 +491,12 @@ namespace CS300Net
             removing = true;
             try
             {
-                while (true)
+                while (removeQueue.Count > 0)
                 {
                     Action rem = removeQueue.Dequeue();
                     rem();
                 }
+                removing = false;
             }
             catch (InvalidOperationException)
             {
