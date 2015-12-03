@@ -1,4 +1,5 @@
-﻿using System;
+﻿//Mohammed Inoue CS300 Group: Carcaju
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -7,8 +8,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Diagnostics.Contracts;
 using CS300Net;
 
+///<summary>
+///This class holds all of the functionality of the winforms for the program
+///</summary>
 
 namespace DispatcherSystem
 {
@@ -16,116 +21,125 @@ namespace DispatcherSystem
     {
         NetworkManager networkMan = new NetworkManager();
         EmergencyVehicleManager eMan = new EmergencyVehicleManager();
-        EmergencyVehicle car = new EmergencyVehicle();
         string destination = "";
 
         private List<Tuple<string,int>> IpId = new List<Tuple<string,int>>(); 
 
+
+        /// <summary>
+        /// This is the form which initializes the network manager 
+        /// </summary>
         public Form1()
         {
+            networkMan.StopListen();
             networkMan.Register(this);
             InitializeComponent();
-            //eMan.registerEV(car);
             networkMan.Listen();
-            Console.WriteLine("Port: {0}", networkMan.Port);
-            Console.WriteLine("Now listening on {0}", NetworkManager.LocalIP);
+            label4.Text = NetworkManager.LocalIP.ToString();
+            Console.WriteLine(NetworkManager.LocalIP.ToString());
         }
 
-        private void textBox1_TextChanged(object sender, EventArgs e)
+        /// <summary>
+        /// DestinationInput updates the destination when user inputs it into the destinationtext
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void DestinationInput_TextChanged(object sender, EventArgs e)
         {
             //Dispatcher places destination information here
-            destination = textBox1.Text;
+            destination = DestinationInput.Text;
         }
-
-        private void button2_Click(object sender, EventArgs e)
+        /// <summary>
+        /// RefreshButton when clicked, clears the listbox and then adds all items in the EVList to the listbox
+        /// This allows the dispatcher to see which EVs are available
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RefreshButton_Click(object sender, EventArgs e)
         {
             //refresh button
+            IDListBox.Items.Clear();
             int matchFound = 0;
-            int [] removalTargets = new int[100];
-            int h = 0;
-            bool removalFound = false;
             //Update listbox with EVM's ID array
             for (int i = 0; i < eMan.size; i++ )
             {
                 matchFound = 0;
-                foreach(object o in listBox1.Items)
+                foreach(object o in IDListBox.Items)
                 {
-                    removalFound = true;
-
                     if (o.ToString() == eMan.IDList[i].ToString())
                     {
                         matchFound = 1;
                         break;
                     }
-
-                    for (int j = 0; j < eMan.size; j++)
-                    {
-                        if (o.ToString() == eMan.IDList[j].ToString())
-                        {
-                            removalFound = false;
-                            break;
-                        }
-                    }
-                    
-                    if (removalFound == true)
-                    {
-                        h++;
-                        if (h < 99)
-                            removalTargets[h] = listBox1.Items.IndexOf(o);
-                        Console.WriteLine(listBox1.Items.IndexOf(o));
-                    }
                 }
                 //Match wasn't found for this ID
                 if (matchFound == 0)
                 {
-                    listBox1.Items.Add(eMan.IDList[i].ToString());
+                    IDListBox.Items.Add(eMan.IDList[i].ToString());
                 }
-                //Do loops here to find IDs not in the listbox, then add them.
-                //Also loop to find IDs that are in listbox but not in EVList and remove them
             }
-            if (h > 0)
+        }
+        /// <summary>
+        /// This funciton assigns the vehicle with the ID selected in the list box to the destination
+        /// </summary>
+        private void AssignButton_Click(object sender, EventArgs e)
+        {
+            Contract.Requires(destination != "");
+            if (IDListBox.SelectedItem != null)
             {
-                for (int i = h; i > 0; i--)
+                Console.WriteLine(IDListBox.SelectedItem.ToString());
+                int requestedID = Convert.ToInt32(IDListBox.SelectedItem.ToString());
+                //If the EV signed off right before the Dispatcher assigned them to a destination, this will catch the exception
+                try { networkMan.Send(IpId.Find(x => x.Item2 == requestedID).Item1, Encoding.ASCII.GetBytes(destination + ';')); }
+                catch (Exception)
                 {
-                    listBox1.Items.RemoveAt(removalTargets[i]);
+                    
                 }
-
             }
-
         }
-
-        private void button1_Click(object sender, EventArgs e)
+        /// <summary>
+        /// If an EV disconnects from the Dispatcher, the Dispatcher removes the EV from the list of available EVs
+        /// </summary>
+        /// <param name="ipAddr"></param>
+        public void ConnectionClosed(string ipAddr)
         {
-            int requestedID = Convert.ToInt32(listBox1.SelectedItem.ToString());
-            byte [] data = Encoding.ASCII.GetBytes(destination);
-            networkMan.Send(IpId.Find(x => x.Item2 == requestedID).Item1, data); 
-            //Send destination and requestedID through network
-            //EV system that has same ID will receive destination string and display map
-        }
-
-        void NetObserver.ConnectionClosed(string ipAddr)
-        {
+            eMan.removeEV(IpId.Find(x => x.Item1 == ipAddr).Item2);
             IpId.Remove(IpId.Find(x => x.Item1 == ipAddr));
+            
         }
 
-        void NetObserver.ConnectionOpened(string ipAddr)
+        /// <summary>
+        /// When the EV connects to the Dispatcher for the first time, the EV's ip address is logged into a tuple
+        /// The tuple will later assign them a unique ID when they send in name, location, and type of vehicle
+        /// </summary>
+        /// <param name="ipAddr"></param>
+        public void ConnectionOpened(string ipAddr)
         {
+            Console.WriteLine(ipAddr);
             Tuple<string, int> IpnoID = new Tuple<string,int>(ipAddr,0);
             IpId.Add(IpnoID);
         }
 
-        void NetObserver.DataRecieved(string ipAddr, byte[] data)
+        /// <summary>
+        /// When the dispatcher receives data, it parses out the ; to obtain the location, type, and name from the EV and then
+        /// Adds that EV to the list, generates a Unique ID for the EV and sends the EV that ID
+        /// </summary>
+        /// <param name="ipAddr"></param>
+        /// <param name="data"></param>
+        public void DataRecieved(string ipAddr, byte[] data)
         {
             string stuff = Encoding.ASCII.GetString(data);
             string[] tempStuff = stuff.Split(';');
-            string name = tempStuff[0];
-            string location = tempStuff[1];
-            string type = tempStuff[2];
-
+            string location = tempStuff[0];
+            string type = tempStuff[1];
+            string name = tempStuff[2];
             EmergencyVehicle newCar = new EmergencyVehicle(location, type, name);
             eMan.registerEV(newCar);
             var i = IpId.FindIndex(x => x.Item1 == ipAddr);
-            IpId[i] = new Tuple<string, int>(ipAddr, newCar.getID());            
+            IpId[i] = new Tuple<string, int>(ipAddr, newCar.getID());
+            string toBecomeData = '_' + newCar.getID().ToString() + ';';
+            byte[] carID = Encoding.ASCII.GetBytes(toBecomeData);
+            networkMan.Send(ipAddr, carID);
         }
     }
 }

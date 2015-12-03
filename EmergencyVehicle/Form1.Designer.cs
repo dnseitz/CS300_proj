@@ -28,28 +28,28 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
+            this.PictureMap = new System.Windows.Forms.PictureBox();
             this.button1 = new System.Windows.Forms.Button();
-            this.textBox1 = new System.Windows.Forms.TextBox();
-            this.textBox3 = new System.Windows.Forms.TextBox();
+            this.InputLocationTextbox = new System.Windows.Forms.TextBox();
+            this.InputNameTextbox = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.comboBox1 = new System.Windows.Forms.ComboBox();
+            this.TypeComboBox = new System.Windows.Forms.ComboBox();
             this.Vehicle = new System.Windows.Forms.Label();
             this.button2 = new System.Windows.Forms.Button();
-            this.textBox2 = new System.Windows.Forms.TextBox();
+            this.InputDispatcherTextbox = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.PictureMap)).BeginInit();
             this.SuspendLayout();
             // 
             // pictureBox1
             // 
-            this.pictureBox1.Location = new System.Drawing.Point(225, 12);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(711, 455);
-            this.pictureBox1.TabIndex = 0;
-            this.pictureBox1.TabStop = false;
+            this.PictureMap.Location = new System.Drawing.Point(225, 12);
+            this.PictureMap.Name = "pictureBox1";
+            this.PictureMap.Size = new System.Drawing.Size(711, 455);
+            this.PictureMap.TabIndex = 0;
+            this.PictureMap.TabStop = false;
             // 
             // button1
             // 
@@ -59,23 +59,23 @@
             this.button1.TabIndex = 1;
             this.button1.Text = "Sign in";
             this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            this.button1.Click += new System.EventHandler(this.SignInButton_Click);
             // 
             // textBox1
             // 
-            this.textBox1.Location = new System.Drawing.Point(61, 222);
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(158, 20);
-            this.textBox1.TabIndex = 2;
-            this.textBox1.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
+            this.InputLocationTextbox.Location = new System.Drawing.Point(61, 222);
+            this.InputLocationTextbox.Name = "textBox1";
+            this.InputLocationTextbox.Size = new System.Drawing.Size(158, 20);
+            this.InputLocationTextbox.TabIndex = 2;
+            this.InputLocationTextbox.TextChanged += new System.EventHandler(this.InputLocationField_TextChanged);
             // 
             // textBox3
             // 
-            this.textBox3.Location = new System.Drawing.Point(61, 172);
-            this.textBox3.Name = "textBox3";
-            this.textBox3.Size = new System.Drawing.Size(158, 20);
-            this.textBox3.TabIndex = 4;
-            this.textBox3.TextChanged += new System.EventHandler(this.textBox3_TextChanged);
+            this.InputNameTextbox.Location = new System.Drawing.Point(61, 172);
+            this.InputNameTextbox.Name = "textBox3";
+            this.InputNameTextbox.Size = new System.Drawing.Size(158, 20);
+            this.InputNameTextbox.TabIndex = 4;
+            this.InputNameTextbox.TextChanged += new System.EventHandler(this.InputNameField_TextChanged);
             // 
             // label1
             // 
@@ -97,16 +97,16 @@
             // 
             // comboBox1
             // 
-            this.comboBox1.FormattingEnabled = true;
-            this.comboBox1.Items.AddRange(new object[] {
+            this.TypeComboBox.FormattingEnabled = true;
+            this.TypeComboBox.Items.AddRange(new object[] {
             "Police Car",
             "Ambulance",
             "Fire Truck"});
-            this.comboBox1.Location = new System.Drawing.Point(61, 270);
-            this.comboBox1.Name = "comboBox1";
-            this.comboBox1.Size = new System.Drawing.Size(158, 21);
-            this.comboBox1.TabIndex = 7;
-            this.comboBox1.SelectedIndexChanged += new System.EventHandler(this.comboBox1_SelectedIndexChanged);
+            this.TypeComboBox.Location = new System.Drawing.Point(61, 270);
+            this.TypeComboBox.Name = "comboBox1";
+            this.TypeComboBox.Size = new System.Drawing.Size(158, 21);
+            this.TypeComboBox.TabIndex = 7;
+            this.TypeComboBox.SelectedIndexChanged += new System.EventHandler(this.TypeOfVehicleComboBox_SelectedIndexChanged);
             // 
             // Vehicle
             // 
@@ -125,15 +125,15 @@
             this.button2.TabIndex = 9;
             this.button2.Text = "Connect";
             this.button2.UseVisualStyleBackColor = true;
-            this.button2.Click += new System.EventHandler(this.button2_Click);
+            this.button2.Click += new System.EventHandler(this.ConnectButton_Click);
             // 
             // textBox2
             // 
-            this.textBox2.Location = new System.Drawing.Point(44, 58);
-            this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(100, 20);
-            this.textBox2.TabIndex = 10;
-            this.textBox2.TextChanged += new System.EventHandler(this.textBox2_TextChanged_1);
+            this.InputDispatcherTextbox.Location = new System.Drawing.Point(44, 58);
+            this.InputDispatcherTextbox.Name = "textBox2";
+            this.InputDispatcherTextbox.Size = new System.Drawing.Size(100, 20);
+            this.InputDispatcherTextbox.TabIndex = 10;
+            this.InputDispatcherTextbox.TextChanged += new System.EventHandler(this.DispatcherIPField_TextChanged_1);
             // 
             // label3
             // 
@@ -161,19 +161,19 @@
             this.ClientSize = new System.Drawing.Size(948, 479);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.label3);
-            this.Controls.Add(this.textBox2);
+            this.Controls.Add(this.InputDispatcherTextbox);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.Vehicle);
-            this.Controls.Add(this.comboBox1);
+            this.Controls.Add(this.TypeComboBox);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.textBox3);
-            this.Controls.Add(this.textBox1);
+            this.Controls.Add(this.InputNameTextbox);
+            this.Controls.Add(this.InputLocationTextbox);
             this.Controls.Add(this.button1);
-            this.Controls.Add(this.pictureBox1);
+            this.Controls.Add(this.PictureMap);
             this.Name = "Form1";
             this.Text = "Emergency Vehicle System";
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.PictureMap)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -181,16 +181,16 @@
 
         #endregion
 
-        private System.Windows.Forms.PictureBox pictureBox1;
+        private System.Windows.Forms.PictureBox PictureMap;
         private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.TextBox textBox1;
-        private System.Windows.Forms.TextBox textBox3;
+        private System.Windows.Forms.TextBox InputLocationTextbox;
+        private System.Windows.Forms.TextBox InputNameTextbox;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.ComboBox comboBox1;
+        private System.Windows.Forms.ComboBox TypeComboBox;
         private System.Windows.Forms.Label Vehicle;
         private System.Windows.Forms.Button button2;
-        private System.Windows.Forms.TextBox textBox2;
+        private System.Windows.Forms.TextBox InputDispatcherTextbox;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
 

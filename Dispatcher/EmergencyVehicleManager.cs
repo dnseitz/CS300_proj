@@ -1,4 +1,5 @@
-﻿using System;
+﻿//Mohammed Inoue CS300 Group: Carcaju
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,7 +12,10 @@ namespace DispatcherSystem
     {
         public static int ID_MAX = 5000;
 
-
+        /// <summary>
+        /// Emergency Vehicle Manager Constructor
+        /// When it is constructed, it creates an ID list the size of ID_MAX
+        /// </summary>
         public EmergencyVehicleManager()
         {
             EVList = new List<EmergencyVehicle>();
@@ -19,6 +23,10 @@ namespace DispatcherSystem
             IDList = new int[ID_MAX];
             size = 0;
         }
+        /// <summary>
+        /// Adds an Emergency Vehicle into the List
+        /// </summary>
+        /// <param name="newCar">Emergency Vehicle to be added</param>
         public void registerEV(EmergencyVehicle newCar)
         {
 
@@ -28,7 +36,7 @@ namespace DispatcherSystem
             {
                 do
                 {
-                    newID = generateID();
+                   newID = generateID();
                 } while (registerID(newID) == false);
 
                 newCar.setID(newID);
@@ -36,10 +44,14 @@ namespace DispatcherSystem
             }
             else
             {
-                //handle too many cars in system here
+                System.Diagnostics.Debug.WriteLine("EVLIST is full");
             }
         }
 
+        /// <summary>
+        /// Removes an EV from the list with the matching ID
+        /// </summary>
+        /// <param name="targetID"> ID to delete from list</param>
         public void removeEV(int targetID)
         {
             foreach (EmergencyVehicle o in EVList)
@@ -54,7 +66,9 @@ namespace DispatcherSystem
         }
 
 
-        //For testing
+        /// <summary>
+        /// For testing to display EV list
+        /// </summary>
         public void displayList()
         {
             foreach (EmergencyVehicle o in EVList)
@@ -68,6 +82,11 @@ namespace DispatcherSystem
             Console.WriteLine("Size: " + size + "\n");
         }
 
+        /// <summary>
+        /// Adds an ID to the IDList array
+        /// </summary>
+        /// <param name="newID"> ID to be added</param>
+        /// <returns></returns>
         public bool registerID(int newID)
         {
             for (int i = 0; i < size; i++)
@@ -82,6 +101,10 @@ namespace DispatcherSystem
             return true;
         }
         
+        /// <summary>
+        /// Creates an ID
+        /// </summary>
+        /// <returns></returns>
         public int generateID()
         {
             Random rand = new Random();
@@ -89,6 +112,7 @@ namespace DispatcherSystem
             return randomNumber;
         }
 
+        //Removes ID from the array
         public void removeID(int targetID)
         {
             for (int i = 0; i < size; i++)
@@ -106,6 +130,11 @@ namespace DispatcherSystem
             }
         }
 
+        /// <summary>
+        /// Returns an EV with the matching ID
+        /// </summary>
+        /// <param name="targetID"></param>
+        /// <returns></returns>
         public EmergencyVehicle getEV(int targetID)
         {
             foreach (EmergencyVehicle o in EVList)
