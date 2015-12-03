@@ -121,6 +121,23 @@ namespace DispatcherSystem
         }
 
         /// <summary>
+        /// When the form closes, everything is disconnected and the application exits
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                networkMan.Disconnect();
+                networkMan.StopListen();
+                networkMan.Unregister(this);
+                Application.Exit();
+            }
+        }
+
+
+        /// <summary>
         /// When the dispatcher receives data, it parses out the ; to obtain the location, type, and name from the EV and then
         /// Adds that EV to the list, generates a Unique ID for the EV and sends the EV that ID
         /// </summary>

@@ -43,10 +43,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.PictureMap)).BeginInit();
             this.SuspendLayout();
             // 
-            // pictureBox1
+            // PictureMap
             // 
             this.PictureMap.Location = new System.Drawing.Point(225, 12);
-            this.PictureMap.Name = "pictureBox1";
+            this.PictureMap.Name = "PictureMap";
             this.PictureMap.Size = new System.Drawing.Size(711, 455);
             this.PictureMap.TabIndex = 0;
             this.PictureMap.TabStop = false;
@@ -61,18 +61,18 @@
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.SignInButton_Click);
             // 
-            // textBox1
+            // InputLocationTextbox
             // 
             this.InputLocationTextbox.Location = new System.Drawing.Point(61, 222);
-            this.InputLocationTextbox.Name = "textBox1";
+            this.InputLocationTextbox.Name = "InputLocationTextbox";
             this.InputLocationTextbox.Size = new System.Drawing.Size(158, 20);
             this.InputLocationTextbox.TabIndex = 2;
             this.InputLocationTextbox.TextChanged += new System.EventHandler(this.InputLocationField_TextChanged);
             // 
-            // textBox3
+            // InputNameTextbox
             // 
             this.InputNameTextbox.Location = new System.Drawing.Point(61, 172);
-            this.InputNameTextbox.Name = "textBox3";
+            this.InputNameTextbox.Name = "InputNameTextbox";
             this.InputNameTextbox.Size = new System.Drawing.Size(158, 20);
             this.InputNameTextbox.TabIndex = 4;
             this.InputNameTextbox.TextChanged += new System.EventHandler(this.InputNameField_TextChanged);
@@ -95,7 +95,7 @@
             this.label2.TabIndex = 6;
             this.label2.Text = "Name";
             // 
-            // comboBox1
+            // TypeComboBox
             // 
             this.TypeComboBox.FormattingEnabled = true;
             this.TypeComboBox.Items.AddRange(new object[] {
@@ -103,7 +103,7 @@
             "Ambulance",
             "Fire Truck"});
             this.TypeComboBox.Location = new System.Drawing.Point(61, 270);
-            this.TypeComboBox.Name = "comboBox1";
+            this.TypeComboBox.Name = "TypeComboBox";
             this.TypeComboBox.Size = new System.Drawing.Size(158, 21);
             this.TypeComboBox.TabIndex = 7;
             this.TypeComboBox.SelectedIndexChanged += new System.EventHandler(this.TypeOfVehicleComboBox_SelectedIndexChanged);
@@ -127,13 +127,13 @@
             this.button2.UseVisualStyleBackColor = true;
             this.button2.Click += new System.EventHandler(this.ConnectButton_Click);
             // 
-            // textBox2
+            // InputDispatcherTextbox
             // 
-            this.InputDispatcherTextbox.Location = new System.Drawing.Point(44, 58);
-            this.InputDispatcherTextbox.Name = "textBox2";
+            this.InputDispatcherTextbox.Location = new System.Drawing.Point(49, 60);
+            this.InputDispatcherTextbox.Name = "InputDispatcherTextbox";
             this.InputDispatcherTextbox.Size = new System.Drawing.Size(100, 20);
             this.InputDispatcherTextbox.TabIndex = 10;
-            this.InputDispatcherTextbox.TextChanged += new System.EventHandler(this.DispatcherIPField_TextChanged_1);
+            this.InputDispatcherTextbox.TextChanged += new System.EventHandler(this.InputDispatcherTextbox_TextChanged);
             // 
             // label3
             // 

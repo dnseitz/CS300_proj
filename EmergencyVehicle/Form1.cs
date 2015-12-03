@@ -19,6 +19,7 @@ namespace BATSystem
         string inputType = "";
         string inputName = "";
         string dispatcherIP = "";
+        string connectedIP = "";
         int myID = 0;
         bool signedin = false;
         NetworkManager netMan = new NetworkManager();
@@ -48,8 +49,8 @@ namespace BATSystem
                 if (signedin == false)
                 {
                     string toBecomeData = inputLocation + ';' + inputType + ';' + inputName + ';';
-                    if (dispatcherIP != "")
-                        netMan.Send(dispatcherIP, Encoding.ASCII.GetBytes(toBecomeData));
+                    if (connectedIP != "")
+                        netMan.Send(connectedIP, Encoding.ASCII.GetBytes(toBecomeData));
                 }
             }
         }
@@ -63,18 +64,6 @@ namespace BATSystem
         {
             //EV name is assigned here
             inputName = InputNameTextbox.Text;
-        }
-
-        /// <summary>
-        /// Updates the target IP to connect to when entering info into the textbox
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void DispatcherIPField_TextChanged(object sender, EventArgs e)
-        {
-            //EV name is assigned here
-            dispatcherIP = InputDispatcherTextbox.Text;
-            Console.WriteLine(dispatcherIP);
         }
 
         /// <summary>
@@ -125,7 +114,7 @@ namespace BATSystem
         /// <param name="data"></param>
         void NetObserver.DataRecieved(string ipAddr, byte[] data)
         {
-           if (dispatcherIP == ipAddr)
+           if (connectedIP == ipAddr)
             {
                //Converts data received into a string
                 string receivedData = Encoding.ASCII.GetString(data);
@@ -142,12 +131,23 @@ namespace BATSystem
                 else
                 {
                     PictureMap.Load(bingMapAdapter.getImage(inputLocation, receivedData));
-
-                    //temporary removal, do not send to joe with this
-                    System.Media.SoundPlayer player = new System.Media.SoundPlayer();
-                    player.SoundLocation = "trans.wav";
-                    player.Play();
                 }
+            }
+        }
+
+        /// <summary>
+        /// When the form closes, everything is disconnected and the application exits
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                netMan.Disconnect();
+                netMan.StopListen();
+                netMan.Unregister(this);
+                Application.Exit();
             }
         }
 
@@ -163,10 +163,17 @@ namespace BATSystem
             {
                 Console.WriteLine("Connected to {0}", dispatcherIP);
                 label4.Visible = true;
+                connectedIP = dispatcherIP;
             }
         }
 
-        private void DispatcherIPField_TextChanged_1(object sender, EventArgs e)
+
+        /// <summary>
+        /// Updates the target IP to connect to when entering info into the textbox
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void InputDispatcherTextbox_TextChanged(object sender, EventArgs e)
         {
             dispatcherIP = InputDispatcherTextbox.Text;
             Console.WriteLine(dispatcherIP);
