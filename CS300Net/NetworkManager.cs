@@ -546,29 +546,33 @@ namespace CS300Net
         /// <exception cref="ArgumentNullException">Thrown when ipAddr is null, or data is null when it is required, check exception ParamName to see which failed.</exception>
         private void Notify(NetworkEvent netEvent, string ipAddr, byte[] data = null)
         {
-            if (ipAddr == null)
-                throw new ArgumentNullException("ipAddr");
-            Contract.EndContractBlock();
-
-            foreach (NetObserver obs in observers)
+            Thread notifyThread = new Thread(() =>
             {
-                switch (netEvent)
+                if (ipAddr == null)
+                    throw new ArgumentNullException("ipAddr");
+                Contract.EndContractBlock();
+
+                foreach (NetObserver obs in observers)
                 {
-                    case NetworkEvent.CONN_OPEN:
-                        obs.ConnectionOpened(ipAddr);
-                        break;
-                    case NetworkEvent.DATA_RECV:
-                        if (data == null)
-                            throw new ArgumentNullException("data");
-                        obs.DataRecieved(ipAddr, data);
-                        break;
-                    case NetworkEvent.CONN_CLOSE:
-                        obs.ConnectionClosed(ipAddr);
-                        break;
-                    default:
-                        break;
+                    switch (netEvent)
+                    {
+                        case NetworkEvent.CONN_OPEN:
+                            obs.ConnectionOpened(ipAddr);
+                            break;
+                        case NetworkEvent.DATA_RECV:
+                            if (data == null)
+                                throw new ArgumentNullException("data");
+                            obs.DataRecieved(ipAddr, data);
+                            break;
+                        case NetworkEvent.CONN_CLOSE:
+                            obs.ConnectionClosed(ipAddr);
+                            break;
+                        default:
+                            break;
+                    }
                 }
-            }
+            });
+            notifyThread.Start();
         }
         #endregion
     }
