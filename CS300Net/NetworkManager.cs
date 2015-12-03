@@ -456,6 +456,13 @@ namespace CS300Net
                     if (numRead == 0)
                         throw new ObjectDisposedException("TcpClient");
                     Notify(NetworkEvent.DATA_RECV, clientIP, Encoding.GetEncoding("ISO-8859-1").GetBytes(completeMessage.ToString()));
+                    int len = completeMessage.Length;
+                    if (len > 1024)
+                        len = 1024;
+                    for (int i = 0; i < len; ++i)
+                    {
+                        buffer[i] = 0;
+                    }
                     completeMessage.Clear();
                 }
             }
